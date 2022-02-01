@@ -40,15 +40,12 @@ def resolve_batch_num(user_input_var):
     return(batch_nums)
 
 
-#create a variable from the return of user_input_per_batch() to run it and use it to resolve the batch item nums
-#then create a variable from the return of resolve_batch_num to have a list with all possible items ids for the batch
+
 
 # user_input_result = user_input_per_batch()
 # iids_list = resolve_batch_num(user_input_result)
 
-paintids_list = [1,2,3,4,5,6,7,8,9,10,11,12,13]
-print(paintids_list)
-
+paintids_dict = {"default":0,"crimson":1,"lime":2,"black":3,"skyblue":4,"cobalt":5,"burntsienna":6,"forestgreen":7,"purple":8,"pink":9,"orange":10,"grey":11,"titaniumwhite":12,"saffron":13}
 
 
 
@@ -74,11 +71,13 @@ def get_page(url):
 
 
 
-souping = get_page(base_url(23,1))
+souping = get_page(base_url(32,0))
 #testing - input manually for testing souping functions
 #this should later become part of a parent loop that gets id (249 ids per batch), then loops for each color
 #one with million in price - 32,0 
 #normal one - 23,1
+#min num in the hundreds and max num in the thousands - 3854,8
+#no price yet - 1904,8
 
 
 
@@ -95,43 +94,81 @@ def soup_price_pc_tag(souping_page):
         for tags in souping_page.find(id = "matrixRow0"):
             price_pc.append(tags.contents)
     except TypeError:
-        return("Page not found")
+        return("Page not found.")
     else:
         return price_pc[1]
 
 
+#print(soup_price_pc_tag(souping))
+
+
 
 def clean_price_tag(soup_price_pc_tag):
-    """Action: convert list to str to then split, get num or dashes, return only needed characters. If "No Price Yet" return, go to parent"""
+    """Action: convert list to str to then split, get num or dashes, return only needed characters. If ["0","0"], go to parent"""
     price_value_text = str(soup_price_pc_tag)
     price_values = []
-    try:
-        for char in price_value_text:
-            if char.isdigit() or char in ["-",".","m","i","l","o","n","k"]:
-                price_values.append(char)
-    except ValueError:
-        return("No price yet.")
+    
+    if "-" not in price_value_text:
+        return [['0'],['0']]
     else:
-        c_price_values = price_values[:price_values.index("-")], price_values[price_values.index("-") - (len(price_values)-1):]
-        return c_price_values 
+        try:
+            for char in price_value_text:
+                if char.isdigit() or char in ["-",".","m","k"]:
+                    price_values.append(char)
+        except ValueError:
+            return [['0'],['0']]
+        else:
+            price_values = price_values[:price_values.index("-")], price_values[price_values.index("-") - (len(price_values)-1):]
+            return price_values 
+
+
+#print(clean_price_tag(soup_price_pc_tag(souping)))
+
 
 
 def resolve_price(clean_range):
     """Action: creating a dictionary for price values and resolving decimals with k and m symbols"""
+        
     price_dict = {"minp":0, "maxp":0}
-    price_dict["minp"] = "".join(clean_range[0])
-    price_dict["maxp"] = "".join(clean_range[1])
-    for i in price_dict.values():
-        if "k" in i:
-            price_dict["minp"] = (float(price_dict["minp"].replace("k",""))) * 1000
-            price_dict["maxp"] = (float(price_dict["maxp"].replace("k",""))) * 1000
-        elif "m" in i:
-            price_dict["minp"] = (float(price_dict["minp"].replace("m",""))) * 1000000
-            price_dict["maxp"] = (float(price_dict["maxp"].replace("m",""))) * 1000000
+    k_multiplier = 1000
+    m_multiplier = 1000000
+
+    if "k" in clean_range[1]:
+        clean_range[1].remove("k")
+        price_dict["maxp"] = float("".join(clean_range[1])) * k_multiplier
+
+        if "k" not in clean_range[0]:
+            price_dict["minp"] = float("".join(clean_range[0])) * k_multiplier
+
+        elif "k" in clean_range[0]:
+            price_dict["minp"] = float("".join(clean_range[0])) * k_multiplier
         else:
-            price_dict["minp"] = float(price_dict["minp"])
-            price_dict["maxp"] = float(price_dict["maxp"])
-        return price_dict
+            price_dict["minp"] = float("".join(clean_range[0]))
+    
+    elif "m" in clean_range[1]:
+        clean_range[1].remove("m")
+        price_dict["maxp"] = float("".join(clean_range[1])) * m_multiplier
+
+        if "m" in clean_range[0]:
+            price_dict["minp"] = float("".join(clean_range[0])) * m_multiplier
+
+        elif "k" in clean_range[0]:
+            price_dict["minp"] = float("".join(clean_range[0])) * k_multiplier
+
+        else:
+            price_dict["minp"] = float("".join(clean_range[0])) * m_multiplier
+    
+    else:
+        price_dict["maxp"] = float("".join(clean_range[1]))
+        price_dict["minp"] = float("".join(clean_range[0]))
+
+
+    return price_dict
+
+
+
+#print(resolve_price((['1','0'],['1','1'])))
+#print(resolve_price(clean_price_tag(soup_price_pc_tag(souping))))
 
 
 def get_price_min():
@@ -141,3 +178,11 @@ def get_price_min():
 def get_price_max():
     """Action: getting min price values from dict"""
     return resolve_price(clean_price_tag(soup_price_pc_tag(souping)))['maxp']
+
+
+print(get_price_min(), get_price_max())
+
+
+
+
+#################
