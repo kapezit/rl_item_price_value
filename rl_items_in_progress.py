@@ -17,7 +17,7 @@ def user_input_per_batch():
 
         else:
             if user_input > 0 and user_input < 31:
-                print("It's working. FYI, it's better to do the batch # randomly. Scanning batch number {}...".format(user_input))
+                print("It's working. It's better to do the batch # randomly. Scanning batch number {}...".format(user_input))
                 return user_input
             else:
                 print("The number needs to be between 1 and 30.")
