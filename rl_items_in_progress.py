@@ -1,3 +1,5 @@
+from cgi import print_environ_usage
+from datetime import datetime
 from bs4 import BeautifulSoup
 import requests
 
@@ -60,7 +62,7 @@ paintids_dict = {"default":0,"crimson":1,"lime":2,"black":3,"skyblue":4,"cobalt"
 
 
 def base_url(iid, paintid):
-    """Action: Create the url. Requires: itemid as well as paintid. Default (no paint) = 0"""
+    """Action: Create the url. Requires: itemid as well as paintid."""
     return "https://rl.insider.gg/pc/{}/{}".format(iid, paintid)
 
 
@@ -71,13 +73,17 @@ def get_page(url):
 
 
 
-souping = get_page(base_url(32,0))
+souping = get_page(base_url(4522,2))
 #testing - input manually for testing souping functions
 #this should later become part of a parent loop that gets id (249 ids per batch), then loops for each color
 #one with million in price - 32,0 
 #normal one - 23,1
 #min num in the hundreds and max num in the thousands - 3854,8
 #no price yet - 1904,8
+
+#4284,0  fennec, many times in shop
+#4522,2 not in the item shop
+#4549,0  one time in the shop
 
 
 
@@ -180,9 +186,174 @@ def get_price_max():
     return resolve_price(clean_price_tag(soup_price_pc_tag(souping)))['maxp']
 
 
-print(get_price_min(), get_price_max())
+#print(get_price_min(), get_price_max())
 
 
 
 
-#################
+############################################################
+#functions for the right side column - Ingame Shop Prices
+############################################################
+
+
+def soup_item_shop_tag(souping):
+    """Souping of the tags present with the itemp shop information on the right side column. Parent has 3 items, Title, Content, Link to Shop Rotation"""
+    item_shop_pc = []
+    
+    try:
+        for tags in souping.find(id = "itemShopContainer"):
+            item_shop_pc.append(tags.contents)
+    except TypeError:
+        return("Page not found")
+
+    else:
+        return item_shop_pc
+
+
+#print(soup_item_shop_tag(souping))
+
+
+
+def dates_in_shop(soup_item_shop):
+    """Isolating the second tag that has the Content. Returns the number of data tags in them or 0 when it has never been in the shop"""
+    tags_with_data = soup_item_shop[1]
+               
+    if tags_with_data == ['This item has not been in the Item Shop yet.']:
+        times_in_shop_value = 0
+    else:
+        times_in_shop_value = int(len(tags_with_data))
+
+
+    return(times_in_shop_value)
+
+
+
+#num_dates_in_shop = dates_in_shop(soup_item_shop_tag(souping))
+#index_recent_shop = num_dates_in_shop - 1
+
+#print(dates_in_shop(soup_item_shop_tag(souping)))
+
+
+
+
+def recent_in_shop(soup_item_shop):
+    """Only runs well if item has been in the shop. Getting the tag for the last time the item was in the in-game shop."""
+    tags_with_data = soup_item_shop[1]
+        
+    times_in_shop_v = int(len(tags_with_data))
+
+    last_time_shop_i = times_in_shop_v - 1
+
+    recent_tag = tags_with_data[last_time_shop_i]
+
+    return recent_tag
+
+
+#last_time_shop = recent_in_shop(soup_item_shop_tag(souping))
+#print(last_time_shop)
+
+
+
+def final_ingame_shop(last_time_shop_var):
+    """Creating the dictionary with the last time in shop tag. This needs a variable that calls the recent_in_shop(). Error when item has never been in shop"""
+    date_string = last_time_shop_var.contents[len(last_time_shop_var)-3].get_text()   
+    date_value_datetime = datetime.strptime(date_string, '%b %d, %Y')
+    date_value = date_value_datetime.date()
+    
+    cert_tag = str(last_time_shop_var.contents[len(last_time_shop_var)-2].get_text())
+    
+    price_tag = int(last_time_shop_var.contents[len(last_time_shop_var)-1].get_text())
+
+    ingame_shop_dict = {"recent date in shop":  date_value, "recent cert in shop": cert_tag, "recent price in shop": price_tag}
+    return ingame_shop_dict
+
+
+#content_last_day_shop = (final_ingame_shop(last_time_shop))
+
+#print(content_last_day_shop)
+
+
+
+
+
+
+############################################################
+#functions for the right side column - Item Info
+############################################################
+
+
+def soup_item_info_tag(souping):
+    """Souping of the tags present with the item info container - right side column. Need souping var. Two items in the list. Returning without the header."""
+    item_info_pc = []
+    
+    try:
+        for tags in souping.find(id = "itemInfoContainer"):
+            item_info_pc.append(tags.contents)
+    except TypeError:
+        return("Page not found")
+
+    else:
+        return item_info_pc[1]
+
+
+#item_info_tag = (soup_item_info_tag(souping))
+
+
+
+
+def item_info_content(item_info_tag_var):
+    """Getting the content in the info tag - creating dictionary for the contents. Needs soup_intem_info_tag() or the variable created for it"""
+            
+    rarity_value = [child for child in item_info_tag_var[0]]
+    type_value = [child for child in item_info_tag_var[1]]
+    series_value = [child for child in item_info_tag_var[2]]
+    release_value = [child for child in item_info_tag_var[3]]
+    paints_value = [child for child in item_info_tag_var[4]]
+    blueprint_value = [child for child in item_info_tag_var[6]]
+
+    
+    s_series_value = len(series_value) - 1
+    if s_series_value == 1 and len(series_value[1].get_text()) < 5 :
+        s_series_value = 0
+  
+
+    s_release_value = release_value[1].get_text()
+    if "(" in s_release_value:
+        split_release_value = s_release_value.split("(")
+        s_release_value= split_release_value[0]
+    s_release_value_datetime = datetime.strptime(s_release_value, '%b %d, %Y')
+    s_release_value = s_release_value_datetime.date()
+
+         
+    item_info_dict = {"rarity":rarity_value[1].get_text(), "type":type_value[1].get_text(), "number of series":s_series_value,"release date":s_release_value,"paints available":paints_value[1].get_text(),"has blueprint":blueprint_value[1].get_text()}
+
+
+    return item_info_dict
+
+
+#print(item_info_content(item_info_tag))
+
+
+
+
+############################################################
+#functions for the basic info - item name / paint
+############################################################
+
+
+def soup_basic_info_tag(souping):
+    """Souping of the tags present in the the itemData. Need souping var. Getting the whole tag first"""
+    basic_item_pc = []
+    
+    try:
+        for tags in souping.find(id = "itemData"):
+            basic_item_pc.append(tags.contents)
+    except TypeError:
+        return("Page not found")
+
+    else:
+        return basic_item_pc
+
+basic_info_tag = soup_basic_info_tag(souping)
+
+print(basic_info_tag)
