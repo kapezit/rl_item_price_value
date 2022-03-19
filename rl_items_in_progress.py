@@ -2,57 +2,7 @@ from cgi import print_environ_usage
 from datetime import datetime
 from bs4 import BeautifulSoup
 import requests
-
-
-##################################
-#souping inputs iids and paint (in-progress)
-##################################
-
-
-def user_input_per_batch():
-    """Action: getting user input to know which batch is going to be scanned"""
-    while True:
-        try:
-            user_input=int(input("Input the batch number between 1-30 :  "))
-        except ValueError:
-            print("Wrong input, try again.")
-
-        else:
-            if user_input > 0 and user_input < 31:
-                print("It's working. It's better to do the batch # randomly. Scanning batch number {}...".format(user_input))
-                return user_input
-            else:
-                print("The number needs to be between 1 and 30.")
-
-
-
-def resolve_batch_num(user_input_var):
-    """Action: take the result from user input and resolve it with a list of item ids that will be scanned"""
-    start_iid = 1           #first item id num
-    end_iid = 7470          #last item id num - will probably change once the amount of items past this threshold.
-    batch_size = 249        #how many items per batch
-    scan_pairs = []         #list of possible batches (from 0 to 29 - 249 items in each - for user is 1-30)
-    batch_nums = []          
-    
-    for i in range(start_iid,end_iid,batch_size):
-        scan_pairs.append([i,i+249])
-        
-    for iid in range(scan_pairs[user_input_var - 1][0],scan_pairs[user_input_var - 1][1]):
-        batch_nums.append(iid)
-    return(batch_nums)
-
-
-
-
-# user_input_result = user_input_per_batch()
-# iids_list = resolve_batch_num(user_input_result)
-
-paintids_dict = {"default":0,"crimson":1,"lime":2,"black":3,"skyblue":4,"cobalt":5,"burntsienna":6,"forestgreen":7,"purple":8,"pink":9,"orange":10,"grey":11,"titaniumwhite":12,"saffron":13}
-
-
-
-
-
+import json
 
 
 
@@ -89,8 +39,39 @@ souping = get_page(base_url(4522,2))
 
 
 
+############################################################
+#functions for the basic info - item name / paint
+############################################################
+
+
+def soup_name_paint(souping):
+    '''Soup scripts, only look for the script with itemData content, strip it of its js elements in order to read it as json/dictionary'''
+    
+    scripts = souping.findAll('script')
+    lst_scripts = [n for n in scripts]
+
+    for script in lst_scripts:
+        if "var itemData" in str(script.contents):
+            item_data = (str(script.contents).split("\\n")[2])
+
+    item_data_js = item_data[23:-1]
+
+    item_data_dict = json.loads(item_data_js)
+
+    return {"item name":item_data_dict["itemName"],"item paint":item_data_dict["itemColor"]}
+
+
+
+
+item_basics = soup_name_paint(souping)
+
+item_basics["item name"]
+item_basics["item paint"]
+
+
+
 ##################################
-#functions for the item price
+#functions for the item price - min and max
 ##################################
 
 def soup_price_pc_tag(souping_page):
@@ -111,6 +92,7 @@ def soup_price_pc_tag(souping_page):
 
 def clean_price_tag(soup_price_pc_tag):
     """Action: convert list to str to then split, get num or dashes, return only needed characters. If ["0","0"], go to parent"""
+    #soup_price_pc_tag = soup_price_pc_tag(souping)
     price_value_text = str(soup_price_pc_tag)
     price_values = []
     
@@ -186,18 +168,22 @@ def get_price_max():
     return resolve_price(clean_price_tag(soup_price_pc_tag(souping)))['maxp']
 
 
-#print(get_price_min(), get_price_max())
+price_pair = resolve_price(clean_price_tag(soup_price_pc_tag(souping)))
+price_min = price_pair['minp']
+price_max = price_pair['maxp']
+
+print(get_price_min(), get_price_max())
 
 
 
 
 ############################################################
-#functions for the right side column - Ingame Shop Prices
+#functions for the right side column - Number of days in Shop
 ############################################################
 
 
 def soup_item_shop_tag(souping):
-    """Souping of the tags present with the itemp shop information on the right side column. Parent has 3 items, Title, Content, Link to Shop Rotation"""
+    """Souping of the tags present with the item shop information on the right side column. Parent has 3 items, Title, Content, Link to Shop Rotation"""
     item_shop_pc = []
     
     try:
@@ -209,8 +195,6 @@ def soup_item_shop_tag(souping):
     else:
         return item_shop_pc
 
-
-#print(soup_item_shop_tag(souping))
 
 
 
@@ -224,16 +208,18 @@ def dates_in_shop(soup_item_shop):
         times_in_shop_value = int(len(tags_with_data))
 
 
-    return(times_in_shop_value)
+    return times_in_shop_value
 
 
 
-#num_dates_in_shop = dates_in_shop(soup_item_shop_tag(souping))
-#index_recent_shop = num_dates_in_shop - 1
-
-#print(dates_in_shop(soup_item_shop_tag(souping)))
+num_dates_in_shop = dates_in_shop(soup_item_shop_tag(souping))
+print(num_dates_in_shop)
 
 
+
+####################################################################################
+#functions for the right side column - If item has been in the shop, get the latest
+####################################################################################
 
 
 def recent_in_shop(soup_item_shop):
@@ -249,13 +235,9 @@ def recent_in_shop(soup_item_shop):
     return recent_tag
 
 
-#last_time_shop = recent_in_shop(soup_item_shop_tag(souping))
-#print(last_time_shop)
-
-
 
 def final_ingame_shop(last_time_shop_var):
-    """Creating the dictionary with the last time in shop tag. This needs a variable that calls the recent_in_shop(). Error when item has never been in shop"""
+    """Creating the dict with the last time in shop tag. This needs a variable that calls the recent_in_shop(). Error when item has never been in shop"""
     date_string = last_time_shop_var.contents[len(last_time_shop_var)-3].get_text()   
     date_value_datetime = datetime.strptime(date_string, '%b %d, %Y')
     date_value = date_value_datetime.date()
@@ -264,14 +246,16 @@ def final_ingame_shop(last_time_shop_var):
     
     price_tag = int(last_time_shop_var.contents[len(last_time_shop_var)-1].get_text())
 
-    ingame_shop_dict = {"recent date in shop":  date_value, "recent cert in shop": cert_tag, "recent price in shop": price_tag}
-    return ingame_shop_dict
+    return {"recent date in shop":  date_value, "recent cert in shop": cert_tag, "recent price in shop": price_tag}
 
 
-#content_last_day_shop = (final_ingame_shop(last_time_shop))
 
-#print(content_last_day_shop)
 
+# info_last_date_shop = final_ingame_shop(recent_in_shop(soup_item_shop_tag(souping)))
+
+# info_last_date_shop["recent date in shop"]
+# info_last_date_shop["recent cert in shop"]
+# info_last_date_shop["recent price in shop"]
 
 
 
@@ -295,8 +279,6 @@ def soup_item_info_tag(souping):
     else:
         return item_info_pc[1]
 
-
-#item_info_tag = (soup_item_info_tag(souping))
 
 
 
@@ -325,35 +307,71 @@ def item_info_content(item_info_tag_var):
     s_release_value = s_release_value_datetime.date()
 
          
-    item_info_dict = {"rarity":rarity_value[1].get_text(), "type":type_value[1].get_text(), "number of series":s_series_value,"release date":s_release_value,"paints available":paints_value[1].get_text(),"has blueprint":blueprint_value[1].get_text()}
-
-
-    return item_info_dict
-
-
-#print(item_info_content(item_info_tag))
+    return {"rarity":rarity_value[1].get_text(), "type":type_value[1].get_text(), "number of series":s_series_value,"release date":s_release_value,"paints available":paints_value[1].get_text(),"has blueprint":blueprint_value[1].get_text()}
 
 
 
+info_right_col = item_info_content(soup_item_info_tag(souping))
 
-############################################################
-#functions for the basic info - item name / paint
-############################################################
+info_right_col["rarity"]
+info_right_col["type"]
+info_right_col["number of series"]
+info_right_col["release date"]
+info_right_col["paints available"]
+info_right_col["has blueprint"]
 
 
-def soup_basic_info_tag(souping):
-    """Souping of the tags present in the the itemData. Need souping var. Getting the whole tag first"""
-    basic_item_pc = []
+
+
+
+
+
+
+
+
+
+##################################
+#souping inputs iids and paint (in-progress)
+##################################
+
+
+def user_input_per_batch():
+    """Action: getting user input to know which batch is going to be scanned"""
+    while True:
+        try:
+            user_input=int(input("Input the batch number between 1-30 :  "))
+        except ValueError:
+            print("Wrong input, try again.")
+
+        else:
+            if user_input > 0 and user_input < 31:
+                print("It's working. It's better to do the batch # randomly. Scanning batch number {}...".format(user_input))
+                return user_input
+            else:
+                print("The number needs to be between 1 and 30.")
+
+
+
+def resolve_batch_num(user_input_var):
+    """Action: take the result from user input and resolve it with a list of item ids that will be scanned"""
+    start_iid = 1           #first item id num
+    end_iid = 7470          #last item id num - will probably change once the amount of items past this threshold.
+    batch_size = 249        #how many items per batch
+    scan_pairs = []         #list of possible batches (from 0 to 29 - 249 items in each - for user is 1-30)
+    batch_nums = []          
     
-    try:
-        for tags in souping.find(id = "itemData"):
-            basic_item_pc.append(tags.contents)
-    except TypeError:
-        return("Page not found")
+    for i in range(start_iid,end_iid,batch_size):
+        scan_pairs.append([i,i+249])
+        
+    for iid in range(scan_pairs[user_input_var - 1][0],scan_pairs[user_input_var - 1][1]):
+        batch_nums.append(iid)
+    return(batch_nums)
 
-    else:
-        return basic_item_pc
 
-basic_info_tag = soup_basic_info_tag(souping)
 
-print(basic_info_tag)
+
+# user_input_result = user_input_per_batch()
+# iids_list = resolve_batch_num(user_input_result)
+
+paintids_dict = {"default":0,"crimson":1,"lime":2,"black":3,"skyblue":4,"cobalt":5,"burntsienna":6,"forestgreen":7,"purple":8,"pink":9,"orange":10,"grey":11,"titaniumwhite":12,"saffron":13}
+
