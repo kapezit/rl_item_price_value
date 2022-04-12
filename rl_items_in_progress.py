@@ -3,7 +3,9 @@ from datetime import datetime
 from bs4 import BeautifulSoup
 import requests
 import json
-
+import os
+import mysql.connector
+from mysql.connector import errorcode
 
 
 ##################################
@@ -23,7 +25,8 @@ def get_page(url):
 
 
 
-souping = get_page(base_url(4522,2))
+#souping = get_page(base_url(4522,2))
+
 #testing - input manually for testing souping functions
 #this should later become part of a parent loop that gets id (249 ids per batch), then loops for each color
 #one with million in price - 32,0 
@@ -63,10 +66,9 @@ def soup_name_paint(souping):
 
 
 
-item_basics = soup_name_paint(souping)
-
-item_basics["item name"]
-item_basics["item paint"]
+# item_basics = soup_name_paint(souping)
+# item_basics["item name"]
+# item_basics["item paint"]
 
 
 
@@ -81,7 +83,7 @@ def soup_price_pc_tag(souping_page):
         for tags in souping_page.find(id = "matrixRow0"):
             price_pc.append(tags.contents)
     except TypeError:
-        return("Page not found.")
+        return("Not found.")
     else:
         return price_pc[1]
 
@@ -92,7 +94,6 @@ def soup_price_pc_tag(souping_page):
 
 def clean_price_tag(soup_price_pc_tag):
     """Action: convert list to str to then split, get num or dashes, return only needed characters. If ["0","0"], go to parent"""
-    #soup_price_pc_tag = soup_price_pc_tag(souping)
     price_value_text = str(soup_price_pc_tag)
     price_values = []
     
@@ -153,26 +154,15 @@ def resolve_price(clean_range):
 
     return price_dict
 
-
-
 #print(resolve_price((['1','0'],['1','1'])))
 #print(resolve_price(clean_price_tag(soup_price_pc_tag(souping))))
 
 
-def get_price_min():
-    """Action: getting min price values from dict"""
-    return resolve_price(clean_price_tag(soup_price_pc_tag(souping)))['minp']
-    
-def get_price_max():
-    """Action: getting min price values from dict"""
-    return resolve_price(clean_price_tag(soup_price_pc_tag(souping)))['maxp']
 
+# price_pair = resolve_price(clean_price_tag(soup_price_pc_tag(souping)))
+# price_min = price_pair['minp']
+# price_max = price_pair['maxp']
 
-price_pair = resolve_price(clean_price_tag(soup_price_pc_tag(souping)))
-price_min = price_pair['minp']
-price_max = price_pair['maxp']
-
-print(get_price_min(), get_price_max())
 
 
 
@@ -212,8 +202,9 @@ def dates_in_shop(soup_item_shop):
 
 
 
-num_dates_in_shop = dates_in_shop(soup_item_shop_tag(souping))
-print(num_dates_in_shop)
+#num_dates_in_shop = dates_in_shop(soup_item_shop_tag(souping))
+
+
 
 
 
@@ -252,11 +243,9 @@ def final_ingame_shop(last_time_shop_var):
 
 
 # info_last_date_shop = final_ingame_shop(recent_in_shop(soup_item_shop_tag(souping)))
-
 # info_last_date_shop["recent date in shop"]
 # info_last_date_shop["recent cert in shop"]
 # info_last_date_shop["recent price in shop"]
-
 
 
 
@@ -311,27 +300,20 @@ def item_info_content(item_info_tag_var):
 
 
 
-info_right_col = item_info_content(soup_item_info_tag(souping))
-
-info_right_col["rarity"]
-info_right_col["type"]
-info_right_col["number of series"]
-info_right_col["release date"]
-info_right_col["paints available"]
-info_right_col["has blueprint"]
-
-
-
-
-
-
+# info_right_col = item_info_content(soup_item_info_tag(souping))
+# info_right_col["rarity"]
+# info_right_col["type"]
+# info_right_col["number of series"]
+# info_right_col["release date"]
+# info_right_col["paints available"]
+# info_right_col["has blueprint"]
 
 
 
 
 
 ##################################
-#souping inputs iids and paint (in-progress)
+#Batch scanning - user input
 ##################################
 
 
@@ -360,18 +342,119 @@ def resolve_batch_num(user_input_var):
     scan_pairs = []         #list of possible batches (from 0 to 29 - 249 items in each - for user is 1-30)
     batch_nums = []          
     
-    for i in range(start_iid,end_iid,batch_size):
-        scan_pairs.append([i,i+249])
+    for num in range(start_iid,end_iid,batch_size):
+        scan_pairs.append([num,num+249])
         
     for iid in range(scan_pairs[user_input_var - 1][0],scan_pairs[user_input_var - 1][1]):
         batch_nums.append(iid)
-    return(batch_nums)
+    return batch_nums
+
+
+
+#iids_list = resolve_batch_num(user_input_per_batch())
 
 
 
 
-# user_input_result = user_input_per_batch()
-# iids_list = resolve_batch_num(user_input_result)
+##################################
+#Connecting to SQL
+##################################
 
-paintids_dict = {"default":0,"crimson":1,"lime":2,"black":3,"skyblue":4,"cobalt":5,"burntsienna":6,"forestgreen":7,"purple":8,"pink":9,"orange":10,"grey":11,"titaniumwhite":12,"saffron":13}
+
+def get_env_var():
+    '''getting credentials from env variable in the os'''
+    USER = os.getenv("MYSQLDB_USER")
+    PASSWORD = os.getenv("MYSQLDB_PSW")
+    HOST = os.getenv("MYSQLDB_HOST")
+    DATABASE = 'sys'
+    return USER, PASSWORD, HOST, DATABASE
+
+user_var = get_env_var()[0]
+psw_var = get_env_var()[1]
+host_var = get_env_var()[2]
+datab_var = get_env_var()[3]
+
+
+
+#def sql_connect(env0, env1, env2, env3):
+ #   '''connecting to SQL server'''
+#    cnx = mysql.connector.connect(user = env0, password = env1, host = env2, database = env3)
+ #   return cnx
+
+
+#def sql_insert(col1, col2, col3, col4, col5, col6, col7, col8, col9, col10, col11, col12, col13, col14, col15 ):
+    #query = "INSERT INTO rl_items_t1(iid_key, name, paint, type, rarity, num_series, release_date, paints_avail, blueprint, price_max, price_min, num_days_in_shop, last_date_in_shop, last_cert_in_shop, last_price_in_shop)    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s,%s, %s, %s, %s, %s)"
+    #data = [(col1, col2, col3, col4, col5, col6, col7, col8, col9, col10, col11, col12, col13, col14, col15)]
+   # return query, data
+
+
+
+col1="col1id06"
+col2="col2"
+col3="col3"
+col4="col4"
+col5="col5"
+col6= 10
+col7= "July 4, 2021"
+col8="col8"
+col9= "col9"
+col10= 1000000.5
+col11= 100000000.5
+col12= 4
+col13= "Jan 6, 2022"
+col14= "col14"
+col15= 100000
+
+
+
+
+
+try:
+    cnx = mysql.connector.connect(user= user_var, password= psw_var,
+                                host= host_var,
+                                database= datab_var)
+    cursor = cnx.cursor()
+    query = "INSERT INTO rl_items_t1(iid_key, name, paint, type, rarity, num_series, release_date, paints_avail, blueprint, price_min, price_max, num_times_in_shop, last_date_in_shop, last_cert_in_shop, last_price_in_shop)    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s,%s, %s, %s, %s, %s)"
+    data = [(col1, col2, col3, col4, col5, col6, col7, col8, col9, col10, col11, col12, col13, col14, col15)]
+    cursor.executemany(query,data)
+    cnx.commit()
+
+except mysql.connector.Error as err:
+  if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
+    print("Something is wrong with your user name or password")
+  elif err.errno == errorcode.ER_BAD_DB_ERROR:
+    print("Database does not exist")
+  else:
+    print(err)
+else:
+    cnx.close()
+
+
+
+
+
+
+
+#def sql_cursor(cnx_var):
+ #   cursor = cnx_var.cursor()
+ #   return cursor
+
+#cursor_var = sql_cursor(sql_connect(get_env_var()[0],get_env_var()[1],get_env_var()[2],get_env_var()[3]))
+
+
+
+
+
+
+
+
+
+
+
+
+#insert_in_table = sql_insert(cursor_var, "col1","col2", "col3", "col4", "col5","col6","col7", "col8", "col9", "col10", "col11","col12", "col13", "col14", "col15")
+#sql_connect(get_env_var()[0],get_env_var()[1],get_env_var()[2],get_env_var()[3]).commit()
+
+
+
 
