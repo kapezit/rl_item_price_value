@@ -1,12 +1,15 @@
-# Project in-progress: Item value analysis
+# Project: Store value analysis for game [in-progress]
 
 ## 1.0 Analysis of the different attributes that interact with the value of an item in Rocket League.
 
-## 2.0 Approach (for now): Segmentation strategy based on trends
+## 2.0 Approach: Segmentation strategy based on trends
+   - Learn about the data available online. DONE
+   - Transfer that data into a db. DONE
+   - Create backup and clean the data. 4/29/2022
 
 ### 2.0.1 Tools:
-   - SQL
-   - Python
+   - MySQL Workbench: database created.
+   - Python thru Visual Studio Code: script created.
 
 ### 2.0.2 Source of data:
-   - rl.insider.gg
+   - Online website with items trading value.
