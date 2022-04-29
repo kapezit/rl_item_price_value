@@ -494,7 +494,8 @@ def resolve_batch_num(user_input_var):
 # #Main program
 # ##################################
 
-iids_list = resolve_batch_num(user_input_per_batch())
+#iids_list = resolve_batch_num(user_input_per_batch())
+iids_list = range(4316,4483)
 
 for iids in iids_list:
     not_found_count = 0
