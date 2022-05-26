@@ -1,7 +1,5 @@
-from cgi import print_environ_usage
 from datetime import datetime
 from bs4 import BeautifulSoup
-import requests
 import json
 import os
 import mysql.connector
@@ -21,7 +19,7 @@ def base_url(iid, paintid):
 
 def get_page(url):
     """Action: Parse html content with bs4. Requires: url as the parameter."""
-    #result = requests.get(url, timeout=12)
+    #result = requests.get(url, timeout=12)     ---- used requests first but was not working, switched to playwright to use a "browser"
     #return BeautifulSoup(result.content, 'html.parser')
 
     for i in range(3):
@@ -32,7 +30,7 @@ def get_page(url):
                 # Webkit is fastest to start
                 browser = p.webkit.launch(headless=True)
                 page = browser.new_page()
-                response = page.goto(url)
+                #response = page.goto(url)
                 webdata = page.content()
                     
             return BeautifulSoup(webdata, 'html.parser')
@@ -44,19 +42,14 @@ def get_page(url):
 
 ###### Variables for loop and tables ######
 
-# itemid = 4522
-# paintid = 2
-# i_idkey = str(itemid) + "_"+ str(paintid)
 
 # souping = get_page(base_url(itemid,paintid))
 
-#testing - input manually for testing souping functions
-#this should later become part of a parent loop that gets id (249 ids per batch), then loops for each color
+#these are just test values:
 #one with million in price - 32,0 
 #normal one - 23,1
 #min num in the hundreds and max num in the thousands - 3854,8
 #no price yet - 1904,8
-
 #4284,0  fennec, many times in shop
 #4522,2 not in the item shop
 #4549,0  one time in the shop
@@ -64,10 +57,8 @@ def get_page(url):
 
 
 
-
-
 ############################################################
-#functions for the basic info - item name / paint
+#functions for the basic info - item name / paint  [needs to be fixed before running it again]
 ############################################################
 
 
@@ -82,18 +73,23 @@ def soup_name_paint(souping):
             item_data = (str(script.contents).split("\\n")[2])
 
     item_data_js = item_data[23:-1]
-
     item_data_js_fix = item_data_js.replace("\\","-")
     item_data_dict = json.loads(item_data_js_fix)
 
-    return {"item name":item_data_dict["itemName"],"item paint":item_data_dict["itemColor"]}
+    #name fix, name should include any variety, the code above doesnt do that - any variety also includes Paint (not the best but its working for now)
+    #fix how to remove Paint from the name
+    title_tag = souping.title.string
+    name_of_item = title_tag.split(" on PC")[0].strip()
+
+    return {"item name":name_of_item,"item paint":item_data_dict["itemColor"]}
 
 
 
 
 ###### Variables for loop and tables ######
 
-# souping = get_page("https://rl.insider.gg/pc/3468/0")
+#souping = get_page("https://rl.insider.gg/pc/1052/0")
+
 # item_basics = soup_name_paint(souping)
 # # i_name = item_basics["item name"]
 # # i_paint =item_basics["item paint"]
@@ -267,35 +263,19 @@ def recent_in_shop(soup_item_shop):
 
 def final_ingame_shop(last_time_shop_var):
     """Creating the dict with the last time in shop tag. This needs a variable that calls the recent_in_shop(). Error when item has never been in shop"""
-    #date_string = last_time_shop_var.contents[len(last_time_shop_var)-3].get_text()
+    
     date_string = last_time_shop_var[len(last_time_shop_var)-3].get_text()   
     date_value_datetime = datetime.strptime(date_string, '%b %d, %Y')
     date_value = date_value_datetime.date()
     
-    #cert_tag = str(last_time_shop_var.contents[len(last_time_shop_var)-2].get_text())
     cert_tag = str(last_time_shop_var[len(last_time_shop_var)-2].get_text())
     
-    #price_tag = int(last_time_shop_var.contents[len(last_time_shop_var)-1].get_text())
     price_tag = int(last_time_shop_var[len(last_time_shop_var)-1].get_text())
 
     return {"recent date in shop":  date_value, "recent cert in shop": cert_tag, "recent price in shop": price_tag}
 
 
 #print(final_ingame_shop(recent_in_shop(soup_item_shop_tag(souping))))
-
-
-###### Variables for loop and tables ######
-
-# if i_times_in_shop == 0:
-#     i_date_shop = "Never"
-#     i_cert_shop =  "Never"
-#     i_price_shop = 0
-
-# else:
-#     info_last_date_shop = final_ingame_shop(recent_in_shop(soup_item_shop_tag(souping)))
-#     i_date_shop = info_last_date_shop["recent date in shop"]
-#     i_cert_shop =  info_last_date_shop["recent cert in shop"]
-#     i_price_shop = info_last_date_shop["recent price in shop"]
 
 
 
@@ -400,12 +380,8 @@ def item_info_content(item_info_tag_var):
 # print(i_blue)
 
 
-
-
-
-
 ##################################
-#Connecting to SQL
+#Connecting to DB
 ##################################
 
 
@@ -423,30 +399,6 @@ host_var = get_env_var()[2]
 datab_var = get_env_var()[3]
 
 ##################################
-
-
-
-# try:
-#     cnx = mysql.connector.connect(user= user_var, password= psw_var,
-#                                 host= host_var,
-#                                 database= datab_var)
-#     cursor = cnx.cursor()
-#     query = "INSERT INTO rl_items_t1(iid_key, name, paint, type, rarity, num_series, release_date, paints_avail, blueprint, price_min, price_max, num_times_in_shop, last_date_in_shop, last_cert_in_shop, last_price_in_shop)    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s,%s, %s, %s, %s, %s)"
-#     data = [(i_idkey, i_name, i_paint, i_type, i_rarity, i_series, i_release, i_pavail, i_blue, i_price_min, i_price_max, i_times_in_shop, i_date_shop, i_cert_shop, i_price_shop)]
-#     cursor.executemany(query,data)
-#     cnx.commit()
-
-# except mysql.connector.Error as err:
-#   if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
-#     print("Something is wrong with your user name or password")
-#   elif err.errno == errorcode.ER_BAD_DB_ERROR:
-#     print("Database does not exist")
-#   else:
-#     print(err)
-# else:
-#     cnx.close()
-
-
 
 
 
@@ -494,8 +446,10 @@ def resolve_batch_num(user_input_var):
 # #Main program
 # ##################################
 
-#iids_list = resolve_batch_num(user_input_per_batch())
-iids_list = range(4316,4483)
+iids_list = resolve_batch_num(user_input_per_batch())
+
+#below is the list of items that needed to be rescanned
+#iids_list = [1052,1056,1059,1060,1062,1066,1096,1099,1104,1123,1126,1131,1132,1365,1385,1423,1443,1447,1449,1502,1613,1619,1628,1716,1742,1743,2383,2385,2392,2693,2732,2819,2952,2954,2969,2970,3012,3025,3027,3144,3310,3314,3317,3322,3338,3365,3369,3438,3459,3515,3620,3691,3692,3693,3698,3699,3852,3878,3897,3898,3899,3900,3901,3988,3997,4000,4001,4032,4057,4112,4113,4132,4181,4183,4201,4202,4203,4217,4222,4245,4261,4269,4294,4296,4313,4314,4326,4335,4347,4358,4370,4371,4382,4386,4406,4426,4445,4446,4447,4457,4459,4481,4493,4585,4640,4652,4690,4698,4712,4721,4726,4747,4748,4764,4777,4779,4787,4839,4849,4932,494,4962,4997,5069,5079,5148,5170,5177,5178,5179,5180,5182,5184,5218,5267,5304,5318,5337,5341,5345,5348,5362,5449,5457,5496,5562,5584,5593,5618,5619,5628,5666,5746,5749,5751,5814,5816,5846,5881,5924,5966,5972,5985,6007,6019,6130,6193,6201,6221,6242,6377,6378,6493,6781,6806,6845,6864,6893,6944,6984,7003,7049,7057,7078,7081,7087,7185,7220,7333,7334,7357,7364,7378,7395,7402,7441,7442,7443,7448,7449,7464]
 
 for iids in iids_list:
     not_found_count = 0
@@ -570,7 +524,8 @@ for iids in iids_list:
                                 host= host_var,
                                 database= datab_var)
                 cursor = cnx.cursor()
-                query = "INSERT INTO rl_items_t1(iid_key, name, paint, type, rarity, num_series, release_date, paints_avail, blueprint, price_min, price_max, num_times_in_shop, last_date_in_shop, last_cert_in_shop, last_price_in_shop)    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s,%s, %s, %s, %s, %s)"
+                #insert into name_of_table(column names,...)   VALUES (%s,...)
+                query = "INSERT INTO names_rl_items_t2(iid_key, name, paint, type, rarity, num_series, release_date, paints_avail, blueprint, price_min, price_max, num_times_in_shop, last_date_in_shop, last_cert_in_shop, last_price_in_shop)    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s,%s, %s, %s, %s, %s)"
                 data = [(i_idkey, i_name, i_paint, i_type, i_rarity, i_series, i_release, i_pavail, i_blue, i_price_min, i_price_max, i_times_in_shop, i_date_shop, i_cert_shop, i_price_shop)]
                 cursor.executemany(query,data)
                 cnx.commit()
@@ -589,8 +544,5 @@ for iids in iids_list:
 
         if i_pavail == "No":
             break
-
-
-        
 
 print("Program ended")
