@@ -30,7 +30,6 @@ def get_page(url):
                 # Webkit is fastest to start
                 browser = p.webkit.launch(headless=True)
                 page = browser.new_page()
-                #response = page.goto(url)
                 webdata = page.content()
                     
             return BeautifulSoup(webdata, 'html.parser')
@@ -38,22 +37,6 @@ def get_page(url):
         except Exception as e:
             print(e)
             print("barfing on " + url)
-
-
-###### Variables for loop and tables ######
-
-
-# souping = get_page(base_url(itemid,paintid))
-
-#these are just test values:
-#one with million in price - 32,0 
-#normal one - 23,1
-#min num in the hundreds and max num in the thousands - 3854,8
-#no price yet - 1904,8
-#4284,0  fennec, many times in shop
-#4522,2 not in the item shop
-#4549,0  one time in the shop
-
 
 
 
@@ -77,26 +60,11 @@ def soup_name_paint(souping):
     item_data_dict = json.loads(item_data_js_fix)
 
     #name fix, name should include any variety, the code above doesnt do that - any variety also includes Paint (not the best but its working for now)
-    #fix how to remove Paint from the name
+    #fix how to remove Paint from the name if paint name is present
     title_tag = souping.title.string
     name_of_item = title_tag.split(" on PC")[0].strip()
 
     return {"item name":name_of_item,"item paint":item_data_dict["itemColor"]}
-
-
-
-
-###### Variables for loop and tables ######
-
-#souping = get_page("https://rl.insider.gg/pc/1052/0")
-
-# item_basics = soup_name_paint(souping)
-# # i_name = item_basics["item name"]
-# # i_paint =item_basics["item paint"]
-# # print(i_name)
-# # print(i_paint)
-# print(item_basics)
-
 
 
 
@@ -116,8 +84,6 @@ def soup_price_pc_tag(souping_page):
     else:
         return price_pc[1]
 
-
-# print(soup_price_pc_tag(souping))
 
 
 
@@ -140,7 +106,6 @@ def clean_price_tag(soup_price_pc_tag):
             return price_values 
 
 
-#print(clean_price_tag(soup_price_pc_tag(souping)))
 
 
 
@@ -183,19 +148,6 @@ def resolve_price(clean_range):
 
     return price_dict
 
-#print(resolve_price((['1','0'],['1','1'])))
-
-
-#print(resolve_price(clean_price_tag(soup_price_pc_tag(souping))))
-
-
-###### Variables for loop and tables ######
-# price_pair = resolve_price(clean_price_tag(soup_price_pc_tag(souping)))
-# i_price_min = price_pair['minp']
-# i_price_max = price_pair['maxp']
-
-
-
 
 
 
@@ -218,7 +170,7 @@ def soup_item_shop_tag(souping):
     else:
         return item_shop_pc
 
-#print(soup_item_shop_tag(souping))
+
 
 
 
@@ -232,14 +184,6 @@ def dates_in_shop(soup_item_shop):
  
     return times_in_shop_value
 
-#print(dates_in_shop(soup_item_shop_tag(souping)))
-
-
-
-###### Variables for loop and tables ######
-#i_times_in_shop = dates_in_shop(soup_item_shop_tag(souping))
-
-#print(i_times_in_shop)
 
 
 
@@ -256,7 +200,6 @@ def recent_in_shop(soup_item_shop):
     recent_tag = soup_item_shop[last_time_shop_i]
     return recent_tag
 
-#print(recent_in_shop(soup_item_shop_tag(souping)))
 
 
 
@@ -274,8 +217,6 @@ def final_ingame_shop(last_time_shop_var):
 
     return {"recent date in shop":  date_value, "recent cert in shop": cert_tag, "recent price in shop": price_tag}
 
-
-#print(final_ingame_shop(recent_in_shop(soup_item_shop_tag(souping))))
 
 
 
@@ -335,7 +276,6 @@ def item_info_content(item_info_tag_var):
 
     
 
-
     s_series_value = len(series_value) - 1
     if s_series_value == 1 and len(series_value[1].get_text()) < 5 :
         s_series_value = 0
@@ -359,25 +299,7 @@ def item_info_content(item_info_tag_var):
 
 
 
-###### Variables for loop and tables ######
-# souping = get_page("https://rl.insider.gg/pc/2279/0")
 
-
-# info_right_col = item_info_content(soup_item_info_tag(souping))
-
-# i_rarity = info_right_col["rarity"]
-# i_type = info_right_col["type"]
-# i_series = info_right_col["number of series"]
-# i_release = info_right_col["release date"]
-# i_pavail = info_right_col["paints available"]
-# i_blue = info_right_col["has blueprint"]
-
-# print(i_type)
-# print(i_rarity)
-# print(i_series)
-# print(i_release)
-# print(i_pavail)
-# print(i_blue)
 
 
 ##################################
@@ -398,7 +320,6 @@ psw_var = get_env_var()[1]
 host_var = get_env_var()[2]
 datab_var = get_env_var()[3]
 
-##################################
 
 
 
